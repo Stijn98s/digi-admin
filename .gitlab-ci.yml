@@ -1,0 +1,78 @@
+image: docker:latest
+
+services:
+- docker:dind
+
+stages:
+- build
+- test
+- deploy
+
+cache:
+  paths:
+    - node_modules/
+
+variables:
+  RELEASE_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+  GIT_SUBMODULE_STRATEGY: recursive
+
+build:
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY;
+  stage: build
+  only:
+    - "master"
+    - "development"
+  script:
+    - docker build --pull -t $RELEASE_IMAGE .
+    - docker push $RELEASE_IMAGE
+
+test_build:
+  stage: test
+  image: node:11.14-alpine
+  services:
+  script:
+    - npm i
+    - npm run build
+  only:
+    - merge_requests
+
+deploy_development:
+  stage: deploy
+  image: docker:latest
+  variables:
+    ADMIN_PORT: 4002
+  only:
+    - "development"
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY;
+    - apk add openssh
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOY_SERVER_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+    - echo -e "StrictHostKeyChecking no" >> /etc/ssh/ssh_config
+    - chmod 700 ~/.ssh/id_rsa
+    - eval "$(ssh-agent -s)"
+    - ssh-add ~/.ssh/id_rsa
+    - ssh-keyscan -H $DEPLOYMENT_SERVER_IP >> ~/.ssh/known_hosts
+  script:
+    - docker -H ssh://geordi@$DEPLOYMENT_SERVER_IP stack deploy --with-registry-auth -c 'docker-compose.production.yml' admin-$CI_COMMIT_REF_NAME
+
+deploy_master:
+  stage: deploy
+  image: docker:latest
+  variables:
+    ADMIN_PORT: 3002
+  only:
+    - "master"
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY;
+    - apk add openssh
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOY_SERVER_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_rsa
+    - echo -e "StrictHostKeyChecking no" >> /etc/ssh/ssh_config
+    - chmod 700 ~/.ssh/id_rsa
+    - eval "$(ssh-agent -s)"
+    - ssh-add ~/.ssh/id_rsa
+    - ssh-keyscan -H $DEPLOYMENT_SERVER_IP >> ~/.ssh/known_hosts
+  script:
+    - docker -H ssh://geordi@$DEPLOYMENT_SERVER_IP stack deploy --with-registry-auth -c 'docker-compose.production.yml' admin-$CI_COMMIT_REF_NAME

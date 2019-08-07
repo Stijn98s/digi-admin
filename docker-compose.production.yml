@@ -1,0 +1,7 @@
+version: '3'
+services:
+  admin:
+    image: project.stijn98s.nl:5555/project/admin:${TAG_NAME-development}
+    restart: always
+    ports:
+      - ${ADMIN_PORT}:8080
