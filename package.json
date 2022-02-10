@@ -31,7 +31,7 @@
     "eslint-plugin-nuxt": "^0.4.3",
     "eslint-plugin-promise": "^4.1.1",
     "eslint-plugin-standard": "^4.0.0",
-    "node-sass": "^4.12.0",
+    "node-sass": "^7.0.0",
     "portable-fetch": "^3.0.0",
     "sass-loader": "^7.1.0",
     "stylus": "^0.54.5",
